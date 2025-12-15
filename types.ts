@@ -32,6 +32,17 @@ export interface Member {
   updatedAt: Date;
 }
 
+export interface Message {
+  id: string;
+  content: string;
+  fileUrl?: string;
+  memberId: string;
+  channelId: string;
+  deleted: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export type ServerWithMembersWithProfiles = Server & {
   members: (Member & { profile: Profile })[];
 };

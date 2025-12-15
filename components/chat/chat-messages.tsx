@@ -3,35 +3,13 @@
 import React, { Fragment, useRef, ElementRef } from "react";
 import { Loader2, ServerCrash } from "lucide-react";
 import { format } from "date-fns";
+import { Member, Profile, Message } from "@/types";
 
 import { ChatWelcome } from "@/components/chat/chat-welcome";
 import { ChatItem } from "@/components/chat/chat-item";
 import { useChatQuery } from "@/hooks/use-chat-query";
 import { useFirestoreChat } from "@/hooks/use-firestore-chat";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
-
-interface Member {
-  id: string;
-  role: "ADMIN" | "MODERATOR" | "GUEST";
-  profileId: string;
-  serverId: string;
-}
-
-interface Profile {
-  id: string;
-  name: string;
-  imageUrl: string;
-  email: string;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  fileUrl?: string;
-  deleted: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
 
 interface ChatMessagesProps {
   name: string;

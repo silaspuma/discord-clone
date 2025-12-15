@@ -1,5 +1,5 @@
 import { NextApiRequest } from "next";
-import { MemberRole } from "@/lib/firestore-helpers";
+import { MemberRole, Member, Message } from "@/lib/firestore-helpers";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { db as firestore } from "@/lib/firebase";
 
@@ -42,9 +42,12 @@ export default async function handler(
       where("serverId", "==", serverId as string)
     );
     const membersSnapshot = await getDocs(membersQuery);
-    const members = membersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const members = membersSnapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    } as Member));
 
-    const member = members.find((m: any) => m.profileId === profile.id);
+    const member = members.find((m) => m.profileId === profile.id);
 
     if (!member)
       return res.status(404).json({ error: "Member not found" });
@@ -65,7 +68,12 @@ export default async function handler(
     if (!messageDoc.exists())
       return res.status(404).json({ error: "Message not found" });
 
-    const messageData: any = { id: messageDoc.id, ...messageDoc.data() };
+    const messageData: Message = { 
+      id: messageDoc.id, 
+      ...messageDoc.data(),
+      createdAt: messageDoc.data().createdAt?.toDate(),
+      updatedAt: messageDoc.data().updatedAt?.toDate(),
+    } as Message;
 
     if (messageData.deleted)
       return res.status(404).json({ error: "Message not found" });

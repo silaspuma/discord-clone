@@ -1,6 +1,7 @@
 import { NextApiRequest } from "next";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db as firestore } from "@/lib/firebase";
+import { Member } from "@/lib/firestore-helpers";
 
 import { NextApiResponseServerIo } from "@/types";
 import { currentProfilePages } from "@/lib/current-profile-pages";
@@ -45,9 +46,12 @@ export default async function handler(
       where("serverId", "==", serverId as string)
     );
     const membersSnapshot = await getDocs(membersQuery);
-    const members = membersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const members = membersSnapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    } as Member));
 
-    const member = members.find((m: any) => m.profileId === profile.id);
+    const member = members.find((m) => m.profileId === profile.id);
 
     if (!member)
       return res.status(404).json({ message: "Member not found" });
