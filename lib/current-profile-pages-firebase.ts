@@ -1,6 +1,6 @@
 import { NextApiRequest } from "next";
 import { adminAuth } from "./firebase-admin";
-import { db } from "@/lib/db";
+import { firestoreDb } from "./firestore-helpers";
 
 export const currentProfilePages = async (req: NextApiRequest) => {
   try {
@@ -16,7 +16,7 @@ export const currentProfilePages = async (req: NextApiRequest) => {
 
     if (!userId) return null;
 
-    const profile = await db.profile.findUnique({
+    const profile = await firestoreDb.profile.findUnique({
       where: { userId }
     });
 

@@ -1,14 +1,14 @@
 "use client";
 
 import React, { Fragment, useRef, ElementRef } from "react";
-import { Member, Message, Profile } from "@prisma/client";
 import { Loader2, ServerCrash } from "lucide-react";
 import { format } from "date-fns";
+import { Member, Profile, Message } from "@/types";
 
 import { ChatWelcome } from "@/components/chat/chat-welcome";
 import { ChatItem } from "@/components/chat/chat-item";
 import { useChatQuery } from "@/hooks/use-chat-query";
-import { useChatSocket } from "@/hooks/use-chat-socket";
+import { useFirestoreChat } from "@/hooks/use-firestore-chat";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 
 interface ChatMessagesProps {
@@ -43,8 +43,6 @@ export function ChatMessages({
   type
 }: ChatMessagesProps) {
   const queryKey = `chat:${chatId}`;
-  const addKey = `chat:${chatId}:messages`;
-  const updateKey = `chat:${chatId}:messages:update`;
 
   const chatRef = useRef<ElementRef<"div">>(null);
   const bottomRef = useRef<ElementRef<"div">>(null);
@@ -56,11 +54,15 @@ export function ChatMessages({
       paramKey,
       paramValue
     });
-  useChatSocket({
+
+  // Use Firestore real-time listener instead of socket
+  useFirestoreChat({
+    channelId: paramKey === "channelId" ? paramValue : undefined,
+    conversationId: paramKey === "conversationId" ? paramValue : undefined,
     queryKey,
-    addKey,
-    updateKey
+    collectionName: type === "channel" ? "messages" : "directMessages",
   });
+
   useChatScroll({
     chatRef,
     bottomRef,

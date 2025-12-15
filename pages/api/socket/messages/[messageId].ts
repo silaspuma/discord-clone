@@ -1,5 +1,7 @@
 import { NextApiRequest } from "next";
-import { MemberRole } from "@prisma/client";
+import { MemberRole, Member, Message } from "@/lib/firestore-helpers";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import { db as firestore } from "@/lib/firebase";
 
 import { NextApiResponseServerIo } from "@/types";
 import { currentProfilePages } from "@/lib/current-profile-pages";
@@ -28,19 +30,27 @@ export default async function handler(
     const server = await db.server.findFirst({
       where: {
         id: serverId as string,
-        members: {
-          some: {
-            profileId: profile.id
-          }
-        }
       },
-      include: {
-        members: true
-      }
     });
 
     if (!server)
       return res.status(404).json({ error: "Server not found" });
+
+    // Get all members of the server
+    const membersQuery = query(
+      collection(firestore, "members"),
+      where("serverId", "==", serverId as string)
+    );
+    const membersSnapshot = await getDocs(membersQuery);
+    const members = membersSnapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    } as Member));
+
+    const member = members.find((m) => m.profileId === profile.id);
+
+    if (!member)
+      return res.status(404).json({ error: "Member not found" });
 
     const channel = await db.channel.findFirst({
       where: {
@@ -52,36 +62,30 @@ export default async function handler(
     if (!channel)
       return res.status(404).json({ error: "Channel not found" });
 
-    const member = server.members.find(
-      (member) => member.profileId === profile.id
-    );
-
-    if (!member)
-      return res.status(404).json({ error: "Member not found" });
-
-    let message = await db.message.findFirst({
-      where: {
-        id: messageId as string,
-        channelId: channelId as string
-      },
-      include: {
-        member: {
-          include: {
-            profile: true
-          }
-        }
-      }
-    });
-
-    if (!message || message.deleted)
+    // Get message with details
+    const messageDoc = await getDoc(doc(firestore, "messages", messageId as string));
+    
+    if (!messageDoc.exists())
       return res.status(404).json({ error: "Message not found" });
 
-    const isMessageOwner = message.memberId === member.id;
+    const messageData: Message = { 
+      id: messageDoc.id, 
+      ...messageDoc.data(),
+      createdAt: messageDoc.data().createdAt?.toDate(),
+      updatedAt: messageDoc.data().updatedAt?.toDate(),
+    } as Message;
+
+    if (messageData.deleted)
+      return res.status(404).json({ error: "Message not found" });
+
+    const isMessageOwner = messageData.memberId === member.id;
     const isAdmin = member.role === MemberRole.ADMIN;
     const isModerator = member.role === MemberRole.MODERATOR;
     const canModify = isMessageOwner || isAdmin || isModerator;
 
     if (!canModify) return res.status(401).json({ error: "Unauthorized" });
+
+    let message;
 
     if (req.method === "DELETE") {
       message = await db.message.update({
@@ -124,10 +128,7 @@ export default async function handler(
       });
     }
 
-    const updateKey = `chat:${channelId}:messages:update`;
-
-    res?.socket?.server?.io?.emit(updateKey, message);
-
+    // Firestore real-time listeners will handle updates automatically
     return res.status(200).json(message);
   } catch (error) {
     console.error("[MESSAGES_ID]", error);

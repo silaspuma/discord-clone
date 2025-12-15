@@ -1,5 +1,5 @@
 import { NextApiRequest } from "next";
-import { MemberRole } from "@prisma/client";
+import { MemberRole } from "@/lib/firestore-helpers";
 
 import { NextApiResponseServerIo } from "@/types";
 import { currentProfilePages } from "@/lib/current-profile-pages";
@@ -114,7 +114,7 @@ export default async function handler(
 
     const updateKey = `chat:${conversation.id}:messages:update`;
 
-    res?.socket?.server?.io?.emit(updateKey, directMessage);
+    
 
     return res.status(200).json(directMessage);
   } catch (error) {
