@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { MemberRole } from "@prisma/client";
+import { MemberRole } from "@/lib/firestore-helpers";
 
 import { currentProfile } from "@/lib/current-profile";
 import { db } from "@/lib/db";
@@ -20,30 +20,29 @@ export async function POST(req: Request) {
     if (name === "general")
       return new NextResponse("Name cannot be 'general'", { status: 400 });
 
-    const server = await db.server.update({
+    // Check if user is admin or moderator
+    const member = await db.member.findFirst({
       where: {
-        id: serverId,
-        members: {
-          some: {
-            profileId: profile.id,
-            role: {
-              in: [MemberRole.ADMIN, MemberRole.MODERATOR]
-            }
-          }
-        }
+        serverId,
+        profileId: profile.id,
       },
-      data: {
-        channels: {
-          create: {
-            profileId: profile.id,
-            name,
-            type
-          }
-        }
-      }
     });
 
-    return NextResponse.json(server);
+    if (!member || ![MemberRole.ADMIN, MemberRole.MODERATOR].includes(member.role)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    // Create the channel
+    const channel = await db.channel.create({
+      data: {
+        profileId: profile.id,
+        name,
+        type,
+        serverId,
+      },
+    });
+
+    return NextResponse.json(channel);
   } catch (error) {
     console.error("[CHANNELS_POST", error);
     return new NextResponse("Internal Error", { status: 500 });

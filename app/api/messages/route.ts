@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { Message } from "@prisma/client";
+import { collection, query, where, orderBy, limit, startAfter, getDocs, doc, getDoc } from "firebase/firestore";
+import { db as firestore } from "@/lib/firebase";
 
 import { currentProfile } from "@/lib/current-profile";
-import { db } from "@/lib/db";
 
 const MESSAGES_BATCH = 10;
 
@@ -19,40 +19,69 @@ export async function GET(req: Request) {
     if (!channelId)
       return new NextResponse("Channel ID Missing", { status: 400 });
 
-    let messages: Message[] = [];
+    let messages: any[] = [];
+    let q;
 
     if (cursor) {
-      messages = await db.message.findMany({
-        take: MESSAGES_BATCH,
-        skip: 1,
-        cursor: {
-          id: cursor
-        },
-        where: {
-          channelId
-        },
-        include: {
-          member: {
-            include: {
-              profile: true
-            }
-          }
-        },
-        orderBy: { createdAt: "desc" }
-      });
+      // Get cursor document for pagination
+      const cursorDoc = await getDoc(doc(firestore, "messages", cursor));
+      
+      q = query(
+        collection(firestore, "messages"),
+        where("channelId", "==", channelId),
+        orderBy("createdAt", "desc"),
+        startAfter(cursorDoc),
+        limit(MESSAGES_BATCH)
+      );
     } else {
-      messages = await db.message.findMany({
-        take: MESSAGES_BATCH,
-        where: { channelId },
-        include: {
-          member: {
-            include: {
-              profile: true
+      q = query(
+        collection(firestore, "messages"),
+        where("channelId", "==", channelId),
+        orderBy("createdAt", "desc"),
+        limit(MESSAGES_BATCH)
+      );
+    }
+
+    const querySnapshot = await getDocs(q);
+
+    // Fetch messages with member and profile data
+    for (const messageDoc of querySnapshot.docs) {
+      const messageData: any = {
+        id: messageDoc.id,
+        ...messageDoc.data(),
+      };
+
+      // Convert timestamps
+      if (messageData.createdAt?.toDate) {
+        messageData.createdAt = messageData.createdAt.toDate();
+      }
+      if (messageData.updatedAt?.toDate) {
+        messageData.updatedAt = messageData.updatedAt.toDate();
+      }
+
+      // Fetch member data
+      if (messageData.memberId) {
+        const memberDoc = await getDoc(doc(firestore, "members", messageData.memberId));
+        if (memberDoc.exists()) {
+          messageData.member = {
+            id: memberDoc.id,
+            ...memberDoc.data(),
+          };
+
+          // Fetch profile data
+          if (messageData.member.profileId) {
+            const profileDoc = await getDoc(doc(firestore, "profiles", messageData.member.profileId));
+            if (profileDoc.exists()) {
+              messageData.member.profile = {
+                id: profileDoc.id,
+                ...profileDoc.data(),
+              };
             }
           }
-        },
-        orderBy: { createdAt: "desc" }
-      });
+        }
+      }
+
+      messages.push(messageData);
     }
 
     let nextCursor = null;

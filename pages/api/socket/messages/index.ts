@@ -1,4 +1,6 @@
 import { NextApiRequest } from "next";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db as firestore } from "@/lib/firebase";
 
 import { NextApiResponseServerIo } from "@/types";
 import { currentProfilePages } from "@/lib/current-profile-pages";
@@ -27,22 +29,28 @@ export default async function handler(
     if (!content)
       return res.status(400).json({ error: "Content Missing" });
 
+    // Check if server exists and user is a member
     const server = await db.server.findFirst({
       where: {
         id: serverId as string,
-        members: {
-          some: {
-            profileId: profile.id
-          }
-        }
       },
-      include: {
-        members: true
-      }
     });
 
     if (!server)
       return res.status(404).json({ message: "Server not found" });
+
+    // Get all members of the server
+    const membersQuery = query(
+      collection(firestore, "members"),
+      where("serverId", "==", serverId as string)
+    );
+    const membersSnapshot = await getDocs(membersQuery);
+    const members = membersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const member = members.find((m: any) => m.profileId === profile.id);
+
+    if (!member)
+      return res.status(404).json({ message: "Member not found" });
 
     const channel = await db.channel.findFirst({
       where: {
@@ -54,13 +62,7 @@ export default async function handler(
     if (!channel)
       return res.status(404).json({ message: "Channel not found" });
 
-    const member = server.members.find(
-      (member) => member.profileId === profile.id
-    );
-
-    if (!member)
-      return res.status(404).json({ message: "Member not found" });
-
+    // Create message - Firestore real-time listeners will handle updates
     const message = await db.message.create({
       data: {
         content,
@@ -76,10 +78,6 @@ export default async function handler(
         }
       }
     });
-
-    const channelKey = `chat:${channelId}:messages`;
-
-    res?.socket?.server?.io?.emit(channelKey, message);
 
     return res.status(200).json(message);
   } catch (error) {
