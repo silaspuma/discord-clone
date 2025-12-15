@@ -1,10 +1,11 @@
-import { NextApiRequest } from "next";
+import { cookies } from "next/headers";
 import { adminAuth } from "./firebase-admin";
-import { db } from "@/lib/db";
+import { firestoreDb } from "./firestore-helpers";
 
-export const currentProfilePages = async (req: NextApiRequest) => {
+export const currentProfile = async () => {
   try {
-    const sessionCookie = req.cookies.session;
+    const cookieStore = cookies();
+    const sessionCookie = cookieStore.get("session")?.value;
     
     if (!sessionCookie) {
       return null;
@@ -16,13 +17,13 @@ export const currentProfilePages = async (req: NextApiRequest) => {
 
     if (!userId) return null;
 
-    const profile = await db.profile.findUnique({
+    const profile = await firestoreDb.profile.findUnique({
       where: { userId }
     });
 
     return profile;
   } catch (error) {
-    console.error("Error getting current profile (pages):", error);
+    console.error("Error getting current profile:", error);
     return null;
   }
 };
