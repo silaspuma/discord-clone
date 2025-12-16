@@ -2,6 +2,19 @@ import { Server as NetServer, Socket } from "net";
 import { NextApiResponse } from "next";
 import { Server as SocketIOServer } from "socket.io";
 
+// Enums
+export enum MemberRole {
+  ADMIN = "ADMIN",
+  MODERATOR = "MODERATOR",
+  GUEST = "GUEST",
+}
+
+export enum ChannelType {
+  TEXT = "TEXT",
+  AUDIO = "AUDIO",
+  VIDEO = "VIDEO",
+}
+
 // Firebase types
 export interface Profile {
   id: string;
@@ -25,7 +38,7 @@ export interface Server {
 
 export interface Member {
   id: string;
-  role: "ADMIN" | "MODERATOR" | "GUEST";
+  role: MemberRole;
   profileId: string;
   serverId: string;
   createdAt: Date;

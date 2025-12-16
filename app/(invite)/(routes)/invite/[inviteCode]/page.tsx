@@ -33,9 +33,18 @@ export default async function InviteCodPage({
 
   if (existingServer) return redirect(`/servers/${existingServer.id}`);
 
-  const server = await db.server.update({
+  // Find the server by inviteCode first
+  const serverToJoin = await db.server.findFirst({
     where: {
       inviteCode
+    }
+  });
+
+  if (!serverToJoin) return redirect("/");
+
+  const server = await db.server.update({
+    where: {
+      id: serverToJoin.id
     },
     data: {
       members: {

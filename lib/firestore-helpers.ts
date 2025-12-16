@@ -209,6 +209,10 @@ export const firestoreDb = {
           return serverData;
         }
 
+        if (params.where.inviteCode) {
+          constraints.push(where("inviteCode", "==", params.where.inviteCode));
+        }
+
         if (params.where.profileId) {
           constraints.push(where("profileId", "==", params.where.profileId));
         }
@@ -217,8 +221,34 @@ export const firestoreDb = {
         const querySnapshot = await getDocs(q);
         
         if (!querySnapshot.empty) {
-          const doc = querySnapshot.docs[0];
-          return convertTimestamps({ id: doc.id, ...doc.data() });
+          const serverDoc = querySnapshot.docs[0];
+          const serverData = convertTimestamps({ id: serverDoc.id, ...serverDoc.data() });
+          
+          // Handle nested where clause for members
+          if (params.where.members?.some) {
+            const membersQuery = query(
+              collection(db, "members"),
+              where("serverId", "==", serverDoc.id)
+            );
+            const membersSnap = await getDocs(membersQuery);
+            const members = membersSnap.docs.map(doc => 
+              convertTimestamps({ id: doc.id, ...doc.data() })
+            );
+            
+            // Check if any member matches the criteria
+            const hasMatchingMember = members.some((member: any) => {
+              if (params.where.members.some.profileId) {
+                return member.profileId === params.where.members.some.profileId;
+              }
+              return false;
+            });
+            
+            if (!hasMatchingMember) {
+              return null;
+            }
+          }
+          
+          return serverData;
         }
         return null;
       } catch (error) {
@@ -299,11 +329,44 @@ export const firestoreDb = {
       data: any;
     }) {
       try {
+        const now = Timestamp.now();
+        const { members, channels, ...updateData } = params.data;
+        
+        // Update server document if there are direct fields to update
+        if (Object.keys(updateData).length > 0) {
+          const docRef = doc(db, "servers", params.where.id);
+          await updateDoc(docRef, {
+            ...updateData,
+            updatedAt: now,
+          });
+        }
+        
+        // Handle nested member creation
+        if (members?.create) {
+          for (const memberData of members.create) {
+            await addDoc(collection(db, "members"), {
+              ...memberData,
+              serverId: params.where.id,
+              role: memberData.role || MemberRole.GUEST,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
+        }
+        
+        // Handle nested channel creation
+        if (channels?.create) {
+          for (const channelData of channels.create) {
+            await addDoc(collection(db, "channels"), {
+              ...channelData,
+              serverId: params.where.id,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
+        }
+        
         const docRef = doc(db, "servers", params.where.id);
-        await updateDoc(docRef, {
-          ...params.data,
-          updatedAt: Timestamp.now(),
-        });
         const docSnap = await getDoc(docRef);
         return convertTimestamps({ id: docSnap.id, ...docSnap.data() });
       } catch (error) {
