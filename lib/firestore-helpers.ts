@@ -7,7 +7,7 @@ import {
   updateDoc,
   deleteDoc,
   query,
-  where,
+  where as whereClause,
   orderBy,
   limit,
   QueryConstraint,
@@ -129,7 +129,7 @@ export const firestoreDb = {
         if (where.userId) {
           const q = query(
             collection(db, "profiles"),
-            where("userId", "==", where.userId),
+            whereClause("userId", "==", where.userId),
             limit(1)
           );
           const querySnapshot = await getDocs(q);
@@ -198,7 +198,7 @@ export const firestoreDb = {
           if (params.include?.members) {
             const q = query(
               collection(db, "members"),
-              where("serverId", "==", params.where.id)
+              whereClause("serverId", "==", params.where.id)
             );
             const membersSnap = await getDocs(q);
             serverData.members = membersSnap.docs.map(doc => 
@@ -206,19 +206,71 @@ export const firestoreDb = {
             );
           }
           
+          if (params.include?.channels) {
+            const channelConstraints: QueryConstraint[] = [
+              whereClause("serverId", "==", params.where.id)
+            ];
+            
+            if (params.include.channels.where?.name) {
+              channelConstraints.push(whereClause("name", "==", params.include.channels.where.name));
+            }
+            
+            if (params.include.channels.orderBy) {
+              const field = Object.keys(params.include.channels.orderBy)[0];
+              const direction = params.include.channels.orderBy[field];
+              channelConstraints.push(orderBy(field, direction));
+            }
+            
+            const q = query(collection(db, "channels"), ...channelConstraints);
+            const channelsSnap = await getDocs(q);
+            serverData.channels = channelsSnap.docs.map(doc => 
+              convertTimestamps({ id: doc.id, ...doc.data() })
+            );
+          }
+          
           return serverData;
         }
 
+        if (params.where.inviteCode) {
+          constraints.push(whereClause("inviteCode", "==", params.where.inviteCode));
+        }
+
         if (params.where.profileId) {
-          constraints.push(where("profileId", "==", params.where.profileId));
+          constraints.push(whereClause("profileId", "==", params.where.profileId));
         }
 
         const q = query(collection(db, "servers"), ...constraints, limit(1));
         const querySnapshot = await getDocs(q);
         
         if (!querySnapshot.empty) {
-          const doc = querySnapshot.docs[0];
-          return convertTimestamps({ id: doc.id, ...doc.data() });
+          const serverDoc = querySnapshot.docs[0];
+          const serverData = convertTimestamps({ id: serverDoc.id, ...serverDoc.data() });
+          
+          // Handle nested where clause for members
+          if (params.where.members?.some) {
+            const membersQuery = query(
+              collection(db, "members"),
+              whereClause("serverId", "==", serverDoc.id)
+            );
+            const membersSnap = await getDocs(membersQuery);
+            const members = membersSnap.docs.map(doc => 
+              convertTimestamps({ id: doc.id, ...doc.data() })
+            );
+            
+            // Check if any member matches the criteria
+            const hasMatchingMember = members.some((member: any) => {
+              if (params.where.members.some.profileId) {
+                return member.profileId === params.where.members.some.profileId;
+              }
+              return false;
+            });
+            
+            if (!hasMatchingMember) {
+              return null;
+            }
+          }
+          
+          return serverData;
         }
         return null;
       } catch (error) {
@@ -232,7 +284,7 @@ export const firestoreDb = {
         const constraints: QueryConstraint[] = [];
         
         if (params?.where?.profileId) {
-          constraints.push(where("profileId", "==", params.where.profileId));
+          constraints.push(whereClause("profileId", "==", params.where.profileId));
         }
 
         const q = query(collection(db, "servers"), ...constraints);
@@ -245,6 +297,12 @@ export const firestoreDb = {
         console.error("Error finding servers:", error);
         return [];
       }
+    },
+
+    async findUnique(params: any) {
+      // findUnique is essentially the same as findFirst for Firestore
+      // but with the expectation of finding exactly one result
+      return this.findFirst(params);
     },
 
     async create(params: { data: any }) {
@@ -299,11 +357,44 @@ export const firestoreDb = {
       data: any;
     }) {
       try {
+        const now = Timestamp.now();
+        const { members, channels, ...updateData } = params.data;
+        
         const docRef = doc(db, "servers", params.where.id);
-        await updateDoc(docRef, {
-          ...params.data,
-          updatedAt: Timestamp.now(),
-        });
+        
+        // Update server document if there are direct fields to update
+        if (Object.keys(updateData).length > 0) {
+          await updateDoc(docRef, {
+            ...updateData,
+            updatedAt: now,
+          });
+        }
+        
+        // Handle nested member creation
+        if (members?.create) {
+          for (const memberData of members.create) {
+            await addDoc(collection(db, "members"), {
+              ...memberData,
+              serverId: params.where.id,
+              role: memberData.role || MemberRole.GUEST,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
+        }
+        
+        // Handle nested channel creation
+        if (channels?.create) {
+          for (const channelData of channels.create) {
+            await addDoc(collection(db, "channels"), {
+              ...channelData,
+              serverId: params.where.id,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
+        }
+        
         const docSnap = await getDoc(docRef);
         return convertTimestamps({ id: docSnap.id, ...docSnap.data() });
       } catch (error) {
@@ -320,7 +411,7 @@ export const firestoreDb = {
         // Delete associated data
         const membersQuery = query(
           collection(db, "members"),
-          where("serverId", "==", params.where.id)
+          whereClause("serverId", "==", params.where.id)
         );
         const membersSnap = await getDocs(membersQuery);
         for (const memberDoc of membersSnap.docs) {
@@ -329,7 +420,7 @@ export const firestoreDb = {
         
         const channelsQuery = query(
           collection(db, "channels"),
-          where("serverId", "==", params.where.id)
+          whereClause("serverId", "==", params.where.id)
         );
         const channelsSnap = await getDocs(channelsQuery);
         for (const channelDoc of channelsSnap.docs) {
@@ -357,10 +448,10 @@ export const firestoreDb = {
         }
 
         if (params.where.serverId) {
-          constraints.push(where("serverId", "==", params.where.serverId));
+          constraints.push(whereClause("serverId", "==", params.where.serverId));
         }
         if (params.where.profileId) {
-          constraints.push(where("profileId", "==", params.where.profileId));
+          constraints.push(whereClause("profileId", "==", params.where.profileId));
         }
 
         const q = query(collection(db, "members"), ...constraints, limit(1));
@@ -420,10 +511,10 @@ export const firestoreDb = {
         }
 
         if (params.where.serverId) {
-          constraints.push(where("serverId", "==", params.where.serverId));
+          constraints.push(whereClause("serverId", "==", params.where.serverId));
         }
         if (params.where.name) {
-          constraints.push(where("name", "==", params.where.name));
+          constraints.push(whereClause("name", "==", params.where.name));
         }
 
         const q = query(collection(db, "channels"), ...constraints, limit(1));
@@ -438,6 +529,11 @@ export const firestoreDb = {
         console.error("Error finding channel:", error);
         return null;
       }
+    },
+
+    async findUnique(params: any) {
+      // findUnique is essentially the same as findFirst for Firestore
+      return this.findFirst(params);
     },
 
     async create(params: { data: any }) {
@@ -585,7 +681,7 @@ export const firestoreDb = {
         const constraints: QueryConstraint[] = [];
         
         if (params.where?.channelId) {
-          constraints.push(where("channelId", "==", params.where.channelId));
+          constraints.push(whereClause("channelId", "==", params.where.channelId));
         }
         
         if (params.orderBy) {
@@ -612,6 +708,35 @@ export const firestoreDb = {
   },
 
   directMessage: {
+    async findFirst(params: any) {
+      try {
+        const constraints: QueryConstraint[] = [];
+        
+        if (params.where.id) {
+          const docRef = doc(db, "directMessages", params.where.id);
+          const docSnap = await getDoc(docRef);
+          if (!docSnap.exists()) return null;
+          return convertTimestamps({ id: docSnap.id, ...docSnap.data() });
+        }
+
+        if (params.where.conversationId) {
+          constraints.push(whereClause("conversationId", "==", params.where.conversationId));
+        }
+
+        const q = query(collection(db, "directMessages"), ...constraints, limit(1));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const doc = querySnapshot.docs[0];
+          return convertTimestamps({ id: doc.id, ...doc.data() });
+        }
+        return null;
+      } catch (error) {
+        console.error("Error finding direct message:", error);
+        return null;
+      }
+    },
+
     async create(params: { data: any; include?: any }) {
       try {
         const now = Timestamp.now();
@@ -710,7 +835,7 @@ export const firestoreDb = {
         const constraints: QueryConstraint[] = [];
         
         if (params.where?.conversationId) {
-          constraints.push(where("conversationId", "==", params.where.conversationId));
+          constraints.push(whereClause("conversationId", "==", params.where.conversationId));
         }
         
         if (params.orderBy) {
@@ -752,8 +877,8 @@ export const firestoreDb = {
           // Check both directions
           const q1 = query(
             collection(db, "conversations"),
-            where("memberOneId", "==", params.where.memberOneId),
-            where("memberTwoId", "==", params.where.memberTwoId),
+            whereClause("memberOneId", "==", params.where.memberOneId),
+            whereClause("memberTwoId", "==", params.where.memberTwoId),
             limit(1)
           );
           const snap1 = await getDocs(q1);
@@ -764,8 +889,8 @@ export const firestoreDb = {
           
           const q2 = query(
             collection(db, "conversations"),
-            where("memberOneId", "==", params.where.memberTwoId),
-            where("memberTwoId", "==", params.where.memberOneId),
+            whereClause("memberOneId", "==", params.where.memberTwoId),
+            whereClause("memberTwoId", "==", params.where.memberOneId),
             limit(1)
           );
           const snap2 = await getDocs(q2);

@@ -57,7 +57,7 @@ export const useFirestoreChat = ({
 
             // Process changes
             for (const change of snapshot.docChanges()) {
-              const messageData = {
+              const messageData: any = {
                 id: change.doc.id,
                 ...change.doc.data(),
               };

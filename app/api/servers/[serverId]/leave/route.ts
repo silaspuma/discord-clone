@@ -15,16 +15,41 @@ export async function PATCH(
     if (!params.serverId)
       return new NextResponse("Server ID Missing", { status: 400 });
 
-    const server = await db.server.update({
-      where: {
-        id: params.serverId,
-        profileId: { not: profile.id },
-        members: { some: { profileId: profile.id } }
-      },
-      data: { members: { deleteMany: { profileId: profile.id } } }
+    // Check if the user is not the owner and is a member
+    const server = await db.server.findFirst({
+      where: { id: params.serverId }
+    });
+    
+    if (!server) {
+      return new NextResponse("Server not found", { status: 404 });
+    }
+    
+    if (server.profileId === profile.id) {
+      return new NextResponse("Cannot leave your own server", { status: 400 });
+    }
+    
+    const member = await db.member.findFirst({
+      where: { 
+        serverId: params.serverId,
+        profileId: profile.id
+      }
+    });
+    
+    if (!member) {
+      return new NextResponse("Not a member of this server", { status: 400 });
+    }
+    
+    // Delete the member
+    await db.member.delete({
+      where: { id: member.id }
+    });
+    
+    // Return the updated server
+    const updatedServer = await db.server.findFirst({
+      where: { id: params.serverId }
     });
 
-    return NextResponse.json(server);
+    return NextResponse.json(updatedServer);
   } catch (error) {
     console.error("[SERVER_ID_LEAVE_PATCH]", error);
     return new NextResponse("Internal Server Error", { status: 500 });

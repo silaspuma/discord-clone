@@ -40,9 +40,9 @@ import { useModal } from "@/hooks/use-modal-store";
 import { ServerWithMembersWithProfiles } from "@/types";
 
 const roleIconMap = {
-  GUEST: null,
-  MODERATOR: <ShieldCheck className="h-4 w-4 ml-2 text-indigo-500" />,
-  ADMIN: <ShieldAlert className="h-4 w-4 ml-2 text-rose-500" />
+  [MemberRole.GUEST]: null,
+  [MemberRole.MODERATOR]: <ShieldCheck className="h-4 w-4 ml-2 text-indigo-500" />,
+  [MemberRole.ADMIN]: <ShieldAlert className="h-4 w-4 ml-2 text-rose-500" />
 };
 
 export function MembersModal() {
@@ -131,22 +131,22 @@ export function MembersModal() {
                           <DropdownMenuPortal>
                             <DropdownMenuSubContent>
                               <DropdownMenuItem
-                                onClick={() => onRoleChange(member.id, "GUEST")}
+                                onClick={() => onRoleChange(member.id, MemberRole.GUEST)}
                               >
                                 <Shield className="h-4 w-4 mr-2" />
                                 Guest
-                                {member.role === "GUEST" && (
+                                {member.role === MemberRole.GUEST && (
                                   <Check className="h4 w-4 ml-auto" />
                                 )}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() =>
-                                  onRoleChange(member.id, "MODERATOR")
+                                  onRoleChange(member.id, MemberRole.MODERATOR)
                                 }
                               >
                                 <ShieldCheck className="h-4 w-4 mr-2" />
                                 Moderator
-                                {member.role === "MODERATOR" && (
+                                {member.role === MemberRole.MODERATOR && (
                                   <Check className="h4 w-4 ml-auto" />
                                 )}
                               </DropdownMenuItem>

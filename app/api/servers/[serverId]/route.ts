@@ -13,8 +13,17 @@ export async function PATCH(
 
     if (!profile) return new NextResponse("Unauthorized", { status: 401 });
 
+    // Verify the server belongs to the profile
+    const existingServer = await db.server.findFirst({
+      where: { id: params.serverId }
+    });
+    
+    if (!existingServer || existingServer.profileId !== profile.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const server = await db.server.update({
-      where: { id: params.serverId, profileId: profile.id },
+      where: { id: params.serverId },
       data: { name, imageUrl }
     });
 
@@ -37,8 +46,17 @@ export async function DELETE(
     if (!params.serverId)
       return new NextResponse("Server ID Missing", { status: 400 });
 
+    // Verify the server belongs to the profile
+    const existingServer = await db.server.findFirst({
+      where: { id: params.serverId }
+    });
+    
+    if (!existingServer || existingServer.profileId !== profile.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const server = await db.server.delete({
-      where: { id: params.serverId, profileId: profile.id }
+      where: { id: params.serverId }
     });
 
     return NextResponse.json(server);

@@ -16,9 +16,7 @@ export const currentProfilePages = async (req: NextApiRequest) => {
 
     if (!userId) return null;
 
-    const profile = await db.profile.findUnique({
-      where: { userId }
-    });
+    const profile = await db.profile.findUnique({ userId });
 
     return profile;
   } catch (error) {

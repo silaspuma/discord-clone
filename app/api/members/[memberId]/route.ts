@@ -20,33 +20,34 @@ export async function DELETE(
     if (!params.memberId)
       return new NextResponse("Member ID Missing", { status: 400 });
 
-    const server = await db.server.update({
-      where: {
-        id: serverId,
-        profileId: profile.id
-      },
-      data: {
-        members: {
-          deleteMany: {
-            id: params.memberId,
-            profileId: {
-              not: profile.id
-            }
-          }
-        }
-      },
-      include: {
-        members: {
-          include: {
-            profile: true
-          },
-          orderBy: {
-            role: "asc"
-          }
-        }
-      }
+    // Verify the server belongs to the profile
+    const server = await db.server.findFirst({
+      where: { id: serverId }
     });
+    
+    if (!server || server.profileId !== profile.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+    
+    // Get the member to verify it's not the server owner
+    const member = await db.member.findFirst({
+      where: { id: params.memberId }
+    });
+    
+    if (!member) {
+      return new NextResponse("Member not found", { status: 404 });
+    }
+    
+    if (member.profileId === profile.id) {
+      return new NextResponse("Cannot kick yourself", { status: 400 });
+    }
 
+    // Delete the member
+    await db.member.delete({
+      where: { id: params.memberId }
+    });
+    
+    // Return the server (without members to keep it simple for now)
     return NextResponse.json(server);
   } catch (error) {
     console.error("[MEMBER_ID_DELETE]", error);
@@ -72,36 +73,35 @@ export async function PATCH(
     if (!params.memberId)
       return new NextResponse("Member ID Missing", { status: 400 });
 
-    const server = await db.server.update({
-      where: {
-        id: serverId,
-        profileId: profile.id
-      },
-      data: {
-        members: {
-          update: {
-            where: {
-              id: params.memberId,
-              profileId: {
-                not: profile.id
-              }
-            },
-            data: { role }
-          }
-        }
-      },
-      include: {
-        members: {
-          include: {
-            profile: true
-          },
-          orderBy: {
-            role: "asc"
-          }
-        }
-      }
+    // Verify the server belongs to the profile
+    const server = await db.server.findFirst({
+      where: { id: serverId }
     });
+    
+    if (!server || server.profileId !== profile.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+    
+    // Get the member to verify it's not the server owner
+    const member = await db.member.findFirst({
+      where: { id: params.memberId }
+    });
+    
+    if (!member) {
+      return new NextResponse("Member not found", { status: 404 });
+    }
+    
+    if (member.profileId === profile.id) {
+      return new NextResponse("Cannot change your own role", { status: 400 });
+    }
 
+    // Update the member's role
+    await db.member.update({
+      where: { id: params.memberId },
+      data: { role }
+    });
+    
+    // Return the server (without members to keep it simple for now)
     return NextResponse.json(server);
   } catch (error) {
     console.error("[MEMBER_ID_PATCH]", error);

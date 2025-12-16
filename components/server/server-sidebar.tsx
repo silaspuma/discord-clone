@@ -1,6 +1,6 @@
 import React from "react";
 import { redirect } from "next/navigation";
-import { ChannelType, MemberRole } from "@/types";
+import { Channel, ChannelType, Member, MemberRole, Profile } from "@/types";
 import { Hash, Mic, ShieldAlert, ShieldCheck, Video } from "lucide-react";
 
 import { currentProfile } from "@/lib/current-profile";
@@ -55,23 +55,23 @@ export async function ServerSidebar({ serverId }: { serverId: string }) {
   });
 
   const textChannels = server?.channels.filter(
-    (channel) => channel.type === ChannelType.TEXT
+    (channel: Channel) => channel.type === ChannelType.TEXT
   );
   const audioChannels = server?.channels.filter(
-    (channel) => channel.type === ChannelType.AUDIO
+    (channel: Channel) => channel.type === ChannelType.AUDIO
   );
   const videoChannels = server?.channels.filter(
-    (channel) => channel.type === ChannelType.VIDEO
+    (channel: Channel) => channel.type === ChannelType.VIDEO
   );
 
   const members = server?.members.filter(
-    (member) => member.profileId !== profile.id
+    (member: Member & { profile: Profile }) => member.profileId !== profile.id
   );
 
   if (!server) return redirect("/");
 
   const role = server.members.find(
-    (member) => member.profileId === profile.id
+    (member: Member & { profile: Profile }) => member.profileId === profile.id
   )?.role;
 
   return (
@@ -84,7 +84,7 @@ export async function ServerSidebar({ serverId }: { serverId: string }) {
               {
                 label: "Text Channels",
                 type: "channel",
-                data: textChannels?.map((channel) => ({
+                data: textChannels?.map((channel: Channel) => ({
                   id: channel.id,
                   name: channel.name,
                   icon: iconMap[channel.type]
@@ -93,7 +93,7 @@ export async function ServerSidebar({ serverId }: { serverId: string }) {
               {
                 label: "Voice Channels",
                 type: "channel",
-                data: audioChannels?.map((channel) => ({
+                data: audioChannels?.map((channel: Channel) => ({
                   id: channel.id,
                   name: channel.name,
                   icon: iconMap[channel.type]
@@ -102,7 +102,7 @@ export async function ServerSidebar({ serverId }: { serverId: string }) {
               {
                 label: "Video Channels",
                 type: "channel",
-                data: videoChannels?.map((channel) => ({
+                data: videoChannels?.map((channel: Channel) => ({
                   id: channel.id,
                   name: channel.name,
                   icon: iconMap[channel.type]
@@ -111,7 +111,7 @@ export async function ServerSidebar({ serverId }: { serverId: string }) {
               {
                 label: "Members",
                 type: "member",
-                data: members?.map((member) => ({
+                data: members?.map((member: Member & { profile: Profile }) => ({
                   id: member.id,
                   name: member.profile.name,
                   icon: roleIconMap[member.role]
@@ -130,7 +130,7 @@ export async function ServerSidebar({ serverId }: { serverId: string }) {
               label="Text Channels"
             />
             <div className="space-y-[2px]">
-              {textChannels.map((channel) => (
+              {textChannels.map((channel: Channel) => (
                 <ServerChannel
                   key={channel.id}
                   channel={channel}
@@ -150,7 +150,7 @@ export async function ServerSidebar({ serverId }: { serverId: string }) {
               label="Voice Channels"
             />
             <div className="space-y-[2px]">
-              {audioChannels.map((channel) => (
+              {audioChannels.map((channel: Channel) => (
                 <ServerChannel
                   key={channel.id}
                   channel={channel}
@@ -170,7 +170,7 @@ export async function ServerSidebar({ serverId }: { serverId: string }) {
               label="Video Channels"
             />
             <div className="space-y-[2px]">
-              {videoChannels.map((channel) => (
+              {videoChannels.map((channel: Channel) => (
                 <ServerChannel
                   key={channel.id}
                   channel={channel}
@@ -190,7 +190,7 @@ export async function ServerSidebar({ serverId }: { serverId: string }) {
               server={server}
             />
             <div className="space-y-[2px]">
-              {members.map((member) => (
+              {members.map((member: Member & { profile: Profile }) => (
                 <ServerMember key={member.id} member={member} server={server} />
               ))}
             </div>
