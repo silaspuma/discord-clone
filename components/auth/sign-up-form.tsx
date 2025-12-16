@@ -17,6 +17,29 @@ export function SignUpForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const createSession = async (idToken: string) => {
+    const response = await fetch("/api/auth/session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ idToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to create session");
+    }
+
+    router.push("/");
+    router.refresh();
+  };
+
+  const handleError = (err: unknown, defaultMessage: string) => {
+    console.error("Sign up error:", err);
+    const message = err instanceof Error ? err.message : defaultMessage;
+    setError(message);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -31,25 +54,9 @@ export function SignUpForm() {
       });
 
       const idToken = await userCredential.user.getIdToken();
-
-      // Create session cookie
-      const response = await fetch("/api/auth/session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ idToken }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create session");
-      }
-
-      router.push("/");
-      router.refresh();
-    } catch (err: any) {
-      console.error("Sign up error:", err);
-      setError(err.message || "Failed to create account. Please try again.");
+      await createSession(idToken);
+    } catch (err) {
+      handleError(err, "Failed to create account. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -63,25 +70,9 @@ export function SignUpForm() {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
       const idToken = await userCredential.user.getIdToken();
-
-      // Create session cookie
-      const response = await fetch("/api/auth/session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ idToken }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create session");
-      }
-
-      router.push("/");
-      router.refresh();
-    } catch (err: any) {
-      console.error("Google sign up error:", err);
-      setError(err.message || "Failed to sign up with Google.");
+      await createSession(idToken);
+    } catch (err) {
+      handleError(err, "Failed to sign up with Google.");
     } finally {
       setLoading(false);
     }

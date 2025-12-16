@@ -16,6 +16,29 @@ export function SignInForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const createSession = async (idToken: string) => {
+    const response = await fetch("/api/auth/session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ idToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to create session");
+    }
+
+    router.push("/");
+    router.refresh();
+  };
+
+  const handleError = (err: unknown, defaultMessage: string) => {
+    console.error("Sign in error:", err);
+    const message = err instanceof Error ? err.message : defaultMessage;
+    setError(message);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -24,25 +47,9 @@ export function SignInForm() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await userCredential.user.getIdToken();
-
-      // Create session cookie
-      const response = await fetch("/api/auth/session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ idToken }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create session");
-      }
-
-      router.push("/");
-      router.refresh();
-    } catch (err: any) {
-      console.error("Sign in error:", err);
-      setError(err.message || "Failed to sign in. Please check your credentials.");
+      await createSession(idToken);
+    } catch (err) {
+      handleError(err, "Failed to sign in. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -56,25 +63,9 @@ export function SignInForm() {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
       const idToken = await userCredential.user.getIdToken();
-
-      // Create session cookie
-      const response = await fetch("/api/auth/session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ idToken }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create session");
-      }
-
-      router.push("/");
-      router.refresh();
-    } catch (err: any) {
-      console.error("Google sign in error:", err);
-      setError(err.message || "Failed to sign in with Google.");
+      await createSession(idToken);
+    } catch (err) {
+      handleError(err, "Failed to sign in with Google.");
     } finally {
       setLoading(false);
     }
