@@ -360,9 +360,10 @@ export const firestoreDb = {
         const now = Timestamp.now();
         const { members, channels, ...updateData } = params.data;
         
+        const docRef = doc(db, "servers", params.where.id);
+        
         // Update server document if there are direct fields to update
         if (Object.keys(updateData).length > 0) {
-          const docRef = doc(db, "servers", params.where.id);
           await updateDoc(docRef, {
             ...updateData,
             updatedAt: now,
@@ -394,7 +395,6 @@ export const firestoreDb = {
           }
         }
         
-        const docRef = doc(db, "servers", params.where.id);
         const docSnap = await getDoc(docRef);
         return convertTimestamps({ id: docSnap.id, ...docSnap.data() });
       } catch (error) {
