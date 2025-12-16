@@ -206,6 +206,28 @@ export const firestoreDb = {
             );
           }
           
+          if (params.include?.channels) {
+            const channelConstraints: QueryConstraint[] = [
+              where("serverId", "==", params.where.id)
+            ];
+            
+            if (params.include.channels.where?.name) {
+              channelConstraints.push(where("name", "==", params.include.channels.where.name));
+            }
+            
+            if (params.include.channels.orderBy) {
+              const field = Object.keys(params.include.channels.orderBy)[0];
+              const direction = params.include.channels.orderBy[field];
+              channelConstraints.push(orderBy(field, direction));
+            }
+            
+            const q = query(collection(db, "channels"), ...channelConstraints);
+            const channelsSnap = await getDocs(q);
+            serverData.channels = channelsSnap.docs.map(doc => 
+              convertTimestamps({ id: doc.id, ...doc.data() })
+            );
+          }
+          
           return serverData;
         }
 
@@ -275,6 +297,12 @@ export const firestoreDb = {
         console.error("Error finding servers:", error);
         return [];
       }
+    },
+
+    async findUnique(params: any) {
+      // findUnique is essentially the same as findFirst for Firestore
+      // but with the expectation of finding exactly one result
+      return this.findFirst(params);
     },
 
     async create(params: { data: any }) {

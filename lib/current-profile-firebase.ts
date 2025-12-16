@@ -17,9 +17,7 @@ export const currentProfile = async () => {
 
     if (!userId) return null;
 
-    const profile = await firestoreDb.profile.findUnique({
-      where: { userId }
-    });
+    const profile = await firestoreDb.profile.findUnique({ userId });
 
     return profile;
   } catch (error) {

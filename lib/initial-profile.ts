@@ -21,11 +21,7 @@ export const initialProfile = async () => {
     // Get user data from Firebase Auth
     const user = await adminAuth.getUser(userId);
 
-    const profile = await db.profile.findUnique({
-      where: {
-        userId: user.uid
-      }
-    });
+    const profile = await db.profile.findUnique({ userId: user.uid });
 
     if (profile) return profile;
 
