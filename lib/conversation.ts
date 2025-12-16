@@ -22,15 +22,8 @@ const findConversation = async (
   try {
     return await db.conversation.findFirst({
       where: {
-        AND: [{ memberOneId }, { memberTwoId }]
-      },
-      include: {
-        memberOne: {
-          include: { profile: true }
-        },
-        memberTwo: {
-          include: { profile: true }
-        }
+        memberOneId,
+        memberTwoId
       }
     });
   } catch (error) {
@@ -47,14 +40,6 @@ const createNewConversation = async (
       data: {
         memberOneId,
         memberTwoId
-      },
-      include: {
-        memberOne: {
-          include: { profile: true }
-        },
-        memberTwo: {
-          include: { profile: true }
-        }
       }
     });
   } catch (error) {

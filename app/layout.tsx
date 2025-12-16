@@ -7,9 +7,9 @@ import { FirestoreRealtimeProvider } from "@/components/providers/firestore-real
 import { QueryProvider } from "@/components/providers/query-provider";
 
 import type { Metadata } from "next";
-import { Open_Sans } from "next/font/google";
+// import { Open_Sans } from "next/font/google";
 
-const openSans = Open_Sans({ subsets: ["latin"] });
+// const openSans = Open_Sans({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Discord Clone",
@@ -25,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={cn(openSans.className, "bg-white dark:bg-[#313338]")}
+        className={cn("bg-white dark:bg-[#313338]")}
       >
         <ThemeProvider
           attribute="class"

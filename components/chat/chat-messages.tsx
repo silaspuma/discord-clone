@@ -122,7 +122,7 @@ export function ChatMessages({
                 member={message.member}
                 id={message.id}
                 content={message.content}
-                fileUrl={message.fileUrl}
+                fileUrl={message.fileUrl ?? null}
                 deleted={message.deleted}
                 timestamp={format(
                   new Date(message.createdAt),
