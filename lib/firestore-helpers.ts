@@ -531,6 +531,11 @@ export const firestoreDb = {
       }
     },
 
+    async findUnique(params: any) {
+      // findUnique is essentially the same as findFirst for Firestore
+      return this.findFirst(params);
+    },
+
     async create(params: { data: any }) {
       try {
         const now = Timestamp.now();
